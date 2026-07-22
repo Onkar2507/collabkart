@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 
@@ -33,13 +39,56 @@ export default function InfluencerProfile() {
   const [followerRange, setFollowerRange] = useState("10k-50k");
   const [bio, setBio] = useState("");
   const [rate, setRate] = useState("");
+
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
+  // Load existing profile from Firestore
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const loadProfile = async () => {
+      try {
+        const profileRef = doc(
+          db,
+          "influencerProfiles",
+          user.uid
+        );
+
+        const profileSnap = await getDoc(profileRef);
+
+        if (profileSnap.exists()) {
+          const data = profileSnap.data();
+
+          setName(data.name || "");
+          setNiche(data.niche || "Food");
+          setLocation(data.location || "");
+          setFollowerRange(
+            data.followerRange || "10k-50k"
+          );
+          setBio(data.bio || "");
+          setRate(data.rate?.toString() || "");
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  // Wait until Firebase user + profile are loaded
+  if (!user || loading) {
     return <p>Loading...</p>;
   }
 
+  // Create or update profile
   const handleSave = async (e) => {
     e.preventDefault();
 
@@ -47,21 +96,25 @@ export default function InfluencerProfile() {
     setSaved(false);
 
     try {
-      await setDoc(doc(db, "influencerProfiles", user.uid), {
-        uid: user.uid,
-        name,
-        niche,
-        location,
-        followerRange,
-        bio,
-        rate: Number(rate),
-        updatedAt: serverTimestamp(),
-      });
+      await setDoc(
+        doc(db, "influencerProfiles", user.uid),
+        {
+          uid: user.uid,
+          name,
+          niche,
+          location,
+          followerRange,
+          bio,
+          rate: Number(rate),
+          updatedAt: serverTimestamp(),
+        }
+      );
 
       console.log("Profile saved:", user.uid);
+
       setSaved(true);
     } catch (err) {
-      console.error(err);
+      console.error("Error saving profile:", err);
       setError(err.message);
     }
   };
@@ -145,7 +198,9 @@ export default function InfluencerProfile() {
         <br />
         <br />
 
-        <button type="submit">Save Profile</button>
+        <button type="submit">
+          Save Profile
+        </button>
       </form>
 
       {error && <p>{error}</p>}

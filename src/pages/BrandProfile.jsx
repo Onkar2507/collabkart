@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 
@@ -23,13 +29,51 @@ export default function BrandProfile() {
   const [niche, setNiche] = useState("Food");
   const [budget, setBudget] = useState("");
   const [goals, setGoals] = useState("");
+
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
+  // Load existing brand profile
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const loadProfile = async () => {
+      try {
+        const profileRef = doc(
+          db,
+          "brandProfiles",
+          user.uid
+        );
+
+        const profileSnap = await getDoc(profileRef);
+
+        if (profileSnap.exists()) {
+          const data = profileSnap.data();
+
+          setCompanyName(data.companyName || "");
+          setNiche(data.niche || "Food");
+          setBudget(data.budget?.toString() || "");
+          setGoals(data.goals || "");
+        }
+      } catch (err) {
+        console.error("Error loading brand profile:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  if (!user || loading) {
     return <p>Loading...</p>;
   }
 
+  // Create or update brand profile
   const handleSave = async (e) => {
     e.preventDefault();
 
@@ -49,7 +93,7 @@ export default function BrandProfile() {
       console.log("Brand profile saved:", user.uid);
       setSaved(true);
     } catch (err) {
-      console.error(err);
+      console.error("Error saving brand profile:", err);
       setError(err.message);
     }
   };
