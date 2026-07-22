@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import InfluencerProfile from "./pages/InfluencerProfile";
 import BrandProfile from "./pages/BrandProfile";
+import BrowseInfluencers from "./pages/BrowseInfluencers";
 
 function App() {
   return (
@@ -22,6 +23,11 @@ function App() {
       <Route
         path="/profile/brand"
         element={<BrandProfile />}
+      />
+
+      <Route
+        path="/influencers"
+        element={<BrowseInfluencers />}
       />
     </Routes>
   );
