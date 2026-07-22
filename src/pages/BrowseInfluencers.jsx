@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+
 import { db } from "../firebase";
+import { useAuth } from "../context/AuthContext";
 
 const NICHES = [
   "All",
@@ -17,6 +26,8 @@ const NICHES = [
 ];
 
 export default function BrowseInfluencers() {
+  const { user } = useAuth();
+
   const [influencers, setInfluencers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +35,11 @@ export default function BrowseInfluencers() {
   const [niche, setNiche] = useState("All");
   const [maxRate, setMaxRate] = useState("");
 
+  const [sendingId, setSendingId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  // Load all influencers
   useEffect(() => {
     const loadInfluencers = async () => {
       try {
@@ -31,14 +47,15 @@ export default function BrowseInfluencers() {
           collection(db, "influencerProfiles")
         );
 
-        const influencerList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        const influencerList = querySnapshot.docs.map((profileDoc) => ({
+          id: profileDoc.id,
+          ...profileDoc.data(),
         }));
 
         setInfluencers(influencerList);
       } catch (err) {
         console.error("Error loading influencers:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -47,23 +64,98 @@ export default function BrowseInfluencers() {
     loadInfluencers();
   }, []);
 
+  // Send collaboration request
+  const handleSendRequest = async (influencer) => {
+    if (!user) {
+      setError("You must be logged in.");
+      return;
+    }
+
+    setError("");
+    setSendingId(influencer.id);
+
+    try {
+      // Get logged-in user's account information
+      const userSnap = await getDoc(
+        doc(db, "users", user.uid)
+      );
+
+      if (!userSnap.exists()) {
+        throw new Error("User account not found.");
+      }
+
+      const userData = userSnap.data();
+
+      // Only brands should send collaboration requests
+      if (userData.role !== "brand") {
+        throw new Error(
+          "Only brand accounts can send collaboration requests."
+        );
+      }
+
+      // Get brand profile so we can store company name
+      const brandSnap = await getDoc(
+        doc(db, "brandProfiles", user.uid)
+      );
+
+      if (!brandSnap.exists()) {
+        throw new Error(
+          "Please create your brand profile before sending requests."
+        );
+      }
+
+      const brandData = brandSnap.data();
+
+      // Create a new request document
+      await addDoc(collection(db, "requests"), {
+        brandId: user.uid,
+        influencerId: influencer.uid,
+
+        brandName: brandData.companyName,
+        influencerName: influencer.name,
+
+        message: message.trim(),
+        status: "pending",
+
+        createdAt: serverTimestamp(),
+      });
+
+      alert(`Request sent to ${influencer.name}!`);
+
+      setMessage("");
+    } catch (err) {
+      console.error("Error sending request:", err);
+      setError(err.message);
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  // Search + filters
   const filteredInfluencers = influencers.filter((influencer) => {
+    const searchText = search.toLowerCase();
+
     const matchesSearch =
       influencer.name
         ?.toLowerCase()
-        .includes(search.toLowerCase()) ||
+        .includes(searchText) ||
       influencer.location
         ?.toLowerCase()
-        .includes(search.toLowerCase());
+        .includes(searchText);
 
     const matchesNiche =
-      niche === "All" || influencer.niche === niche;
+      niche === "All" ||
+      influencer.niche === niche;
 
     const matchesRate =
       maxRate === "" ||
       Number(influencer.rate) <= Number(maxRate);
 
-    return matchesSearch && matchesNiche && matchesRate;
+    return (
+      matchesSearch &&
+      matchesNiche &&
+      matchesRate
+    );
   });
 
   if (loading) {
@@ -105,7 +197,19 @@ export default function BrowseInfluencers() {
         onChange={(e) => setMaxRate(e.target.value)}
       />
 
+      <br />
+      <br />
+
+      <textarea
+        placeholder="Collaboration message"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={3}
+      />
+
       <hr />
+
+      {error && <p>{error}</p>}
 
       {filteredInfluencers.length === 0 ? (
         <p>No influencers found.</p>
@@ -115,12 +219,29 @@ export default function BrowseInfluencers() {
             <h3>{influencer.name}</h3>
 
             <p>Niche: {influencer.niche}</p>
-            <p>Location: {influencer.location}</p>
+
+            <p>
+              Location: {influencer.location}
+            </p>
+
             <p>
               Followers: {influencer.followerRange}
             </p>
+
             <p>Bio: {influencer.bio}</p>
+
             <p>Rate: ₹{influencer.rate}</p>
+
+            <button
+              onClick={() =>
+                handleSendRequest(influencer)
+              }
+              disabled={sendingId === influencer.id}
+            >
+              {sendingId === influencer.id
+                ? "Sending..."
+                : "Send Collaboration Request"}
+            </button>
 
             <hr />
           </div>
