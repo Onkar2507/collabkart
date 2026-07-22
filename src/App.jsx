@@ -1,3 +1,4 @@
+import Matches from "./pages/Matches";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/Login";
@@ -41,6 +42,10 @@ function App() {
         path="/my-requests"
         element={<MyRequests />}
       />
+      <Route
+  path="/matches"
+  element={<Matches />}
+/>
     </Routes>
   );
 }

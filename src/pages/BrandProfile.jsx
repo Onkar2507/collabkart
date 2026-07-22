@@ -27,6 +27,7 @@ export default function BrandProfile() {
 
   const [companyName, setCompanyName] = useState("");
   const [niche, setNiche] = useState("Food");
+  const [location, setLocation] = useState("");
   const [budget, setBudget] = useState("");
   const [goals, setGoals] = useState("");
 
@@ -55,6 +56,7 @@ export default function BrandProfile() {
 
           setCompanyName(data.companyName || "");
           setNiche(data.niche || "Food");
+          setLocation(data.location || "");
           setBudget(data.budget?.toString() || "");
           setGoals(data.goals || "");
         }
@@ -85,6 +87,7 @@ export default function BrandProfile() {
         uid: user.uid,
         companyName,
         niche,
+        location,
         budget: Number(budget),
         goals,
         updatedAt: serverTimestamp(),
@@ -131,10 +134,22 @@ export default function BrandProfile() {
         <br />
 
         <input
+          type="text"
+          placeholder="City, State (e.g. Pune, Maharashtra)"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          required
+        />
+
+        <br />
+        <br />
+
+        <input
           type="number"
           placeholder="Campaign budget (₹)"
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
+          min="1"
           required
         />
 
@@ -152,7 +167,9 @@ export default function BrandProfile() {
         <br />
         <br />
 
-        <button type="submit">Save Profile</button>
+        <button type="submit">
+          Save Profile
+        </button>
       </form>
 
       {error && <p>{error}</p>}
