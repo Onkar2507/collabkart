@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 
 const NICHES = [
@@ -31,27 +33,44 @@ export default function InfluencerProfile() {
   const [followerRange, setFollowerRange] = useState("10k-50k");
   const [bio, setBio] = useState("");
   const [rate, setRate] = useState("");
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
 
   if (!user) {
     return <p>Loading...</p>;
   }
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
-    console.log("Form values:", {
-      name,
-      niche,
-      location,
-      followerRange,
-      bio,
-      rate,
-    });
+    setError("");
+    setSaved(false);
+
+    try {
+      await setDoc(doc(db, "influencerProfiles", user.uid), {
+        uid: user.uid,
+        name,
+        niche,
+        location,
+        followerRange,
+        bio,
+        rate: Number(rate),
+        updatedAt: serverTimestamp(),
+      });
+
+      console.log("Profile saved:", user.uid);
+      setSaved(true);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    }
   };
 
   return (
     <div>
       <h2>Influencer Profile</h2>
+
+      {saved && <p>Profile saved successfully!</p>}
 
       <form onSubmit={handleSave}>
         <input
@@ -128,6 +147,8 @@ export default function InfluencerProfile() {
 
         <button type="submit">Save Profile</button>
       </form>
+
+      {error && <p>{error}</p>}
     </div>
   );
 }
