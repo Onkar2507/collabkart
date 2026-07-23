@@ -8,6 +8,7 @@ import {
 
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import { getRatingsByInfluencer } from "../utils/reviews";
 
 const NICHES = [
   "Food",
@@ -39,6 +40,7 @@ export default function InfluencerProfile() {
   const [followerRange, setFollowerRange] = useState("10k-50k");
   const [bio, setBio] = useState("");
   const [rate, setRate] = useState("");
+  const [ratingSummary, setRatingSummary] = useState(null);
 
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -58,7 +60,10 @@ export default function InfluencerProfile() {
           user.uid
         );
 
-        const profileSnap = await getDoc(profileRef);
+        const [profileSnap, ratings] = await Promise.all([
+          getDoc(profileRef),
+          getRatingsByInfluencer(),
+        ]);
 
         if (profileSnap.exists()) {
           const data = profileSnap.data();
@@ -72,6 +77,8 @@ export default function InfluencerProfile() {
           setBio(data.bio || "");
           setRate(data.rate?.toString() || "");
         }
+
+        setRatingSummary(ratings[user.uid] || null);
       } catch (err) {
         console.error("Error loading profile:", err);
         setError(err.message);
@@ -122,6 +129,14 @@ export default function InfluencerProfile() {
   return (
     <div>
       <h2>Influencer Profile</h2>
+
+      {ratingSummary ? (
+        <p>
+          Rating: {ratingSummary.average.toFixed(1)} / 5 ({ratingSummary.count} {ratingSummary.count === 1 ? "review" : "reviews"})
+        </p>
+      ) : (
+        <p>No reviews yet.</p>
+      )}
 
       {saved && <p>Profile saved successfully!</p>}
 

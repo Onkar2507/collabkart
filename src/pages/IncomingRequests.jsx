@@ -116,7 +116,8 @@ export default function IncomingRequests() {
               </>
             )}
 
-            {request.status === "accepted" && (
+            {(request.status === "accepted" ||
+              request.status === "completed") && (
               <button
                 onClick={() =>
                   navigate(`/chat/${request.id}`)

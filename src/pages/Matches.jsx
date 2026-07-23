@@ -12,11 +12,13 @@ import {
 
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import { getRatingsByInfluencer } from "../utils/reviews";
 
 export default function Matches() {
   const { user } = useAuth();
 
   const [matches, setMatches] = useState([]);
+  const [ratingsByInfluencer, setRatingsByInfluencer] = useState({});
   const [brand, setBrand] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -42,14 +44,17 @@ export default function Matches() {
         setBrand(brandData);
 
         // Load influencers
-        const influencerSnap = await getDocs(
-          collection(db, "influencerProfiles")
-        );
+        const [influencerSnap, ratings] = await Promise.all([
+          getDocs(collection(db, "influencerProfiles")),
+          getRatingsByInfluencer(),
+        ]);
 
         const influencers = influencerSnap.docs.map((profileDoc) => ({
           id: profileDoc.id,
           ...profileDoc.data(),
         }));
+
+        setRatingsByInfluencer(ratings);
 
         // Calculate scores
         const scoredInfluencers = influencers.map((influencer) => {
@@ -341,6 +346,15 @@ export default function Matches() {
               {influencer.matchScore}% —{" "}
               {getMatchLabel(influencer.matchScore)}
             </h4>
+
+            {ratingsByInfluencer[influencer.uid || influencer.id] ? (
+              <p>
+                Rating: {ratingsByInfluencer[influencer.uid || influencer.id].average.toFixed(1)} / 5
+                {" "}({ratingsByInfluencer[influencer.uid || influencer.id].count} {ratingsByInfluencer[influencer.uid || influencer.id].count === 1 ? "review" : "reviews"})
+              </p>
+            ) : (
+              <p>No reviews yet.</p>
+            )}
 
             <p>Niche: {influencer.niche}</p>
 

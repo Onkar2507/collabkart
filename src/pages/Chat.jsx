@@ -31,6 +31,7 @@ export default function Chat() {
   const isTypingRef = useRef(false);
   const typingFieldRef = useRef(null);
   const typingWriteIdRef = useRef(0);
+  const requestStatusRef = useRef(null);
 
   // Real-time collaboration request listener
   useEffect(() => {
@@ -50,9 +51,14 @@ export default function Chat() {
 
         const data = requestSnap.data();
 
-        if (data.status !== "accepted") {
+        if (
+          data.status !== "accepted" &&
+          data.status !== "completed"
+        ) {
           setRequestData(null);
-          setError("Chat is available only for accepted collaborations.");
+          setError(
+            "Chat is available only for accepted or completed collaborations."
+          );
           setLoading(false);
           return;
         }
@@ -68,6 +74,7 @@ export default function Chat() {
           data.brandId === user.uid
             ? "brandTyping"
             : "influencerTyping";
+        requestStatusRef.current = data.status;
 
         setRequestData(data);
         setError("");
@@ -84,7 +91,14 @@ export default function Chat() {
 
   // Real-time message listener
   useEffect(() => {
-    if (!user || !requestId || requestData?.status !== "accepted") return;
+    if (
+      !user ||
+      !requestId ||
+      (requestData?.status !== "accepted" &&
+        requestData?.status !== "completed")
+    ) {
+      return;
+    }
 
     const messagesQuery = query(
       collection(
@@ -124,7 +138,11 @@ export default function Chat() {
   const setTypingState = async (isTyping) => {
     const typingField = typingFieldRef.current;
 
-    if (!typingField || isTypingRef.current === isTyping) {
+    if (
+      requestStatusRef.current !== "accepted" ||
+      !typingField ||
+      isTypingRef.current === isTyping
+    ) {
       return;
     }
 
@@ -153,6 +171,10 @@ export default function Chat() {
   };
 
   const handleTextChange = (e) => {
+    if (requestData?.status !== "accepted") {
+      return;
+    }
+
     const nextText = e.target.value;
     setText(nextText);
     clearTypingTimeout();
@@ -173,7 +195,11 @@ export default function Chat() {
     return () => {
       clearTimeout(typingTimeoutRef.current);
 
-      if (!isTypingRef.current || !typingFieldRef.current) {
+      if (
+        requestStatusRef.current !== "accepted" ||
+        !isTypingRef.current ||
+        !typingFieldRef.current
+      ) {
         return;
       }
 
@@ -190,7 +216,7 @@ export default function Chat() {
   const handleSend = async (e) => {
     e.preventDefault();
 
-    if (!text.trim() || !user) {
+    if (!text.trim() || !user || requestData?.status !== "accepted") {
       return;
     }
 
@@ -276,7 +302,7 @@ export default function Chat() {
         )}
       </div>
 
-      {requestData &&
+      {requestData?.status === "accepted" &&
         (requestData.brandId === user.uid
           ? requestData.influencerTyping
           : requestData.brandTyping) && (
@@ -296,15 +322,24 @@ export default function Chat() {
           placeholder="Type a message..."
           value={text}
           onChange={handleTextChange}
+          disabled={requestData?.status !== "accepted"}
         />
 
         <button
           type="submit"
-          disabled={sending || !text.trim()}
+          disabled={
+            sending ||
+            !text.trim() ||
+            requestData?.status !== "accepted"
+          }
         >
           {sending ? "Sending..." : "Send"}
         </button>
       </form>
+
+      {requestData?.status === "completed" && (
+        <p>This collaboration is completed. New messages are disabled.</p>
+      )}
 
       {error && <p>{error}</p>}
     </div>

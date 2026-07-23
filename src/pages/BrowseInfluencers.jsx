@@ -10,6 +10,7 @@ import {
 
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import { getRatingsByInfluencer } from "../utils/reviews";
 
 const NICHES = [
   "All",
@@ -29,6 +30,7 @@ export default function BrowseInfluencers() {
   const { user } = useAuth();
 
   const [influencers, setInfluencers] = useState([]);
+  const [ratingsByInfluencer, setRatingsByInfluencer] = useState({});
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
@@ -43,9 +45,10 @@ export default function BrowseInfluencers() {
   useEffect(() => {
     const loadInfluencers = async () => {
       try {
-        const querySnapshot = await getDocs(
-          collection(db, "influencerProfiles")
-        );
+        const [querySnapshot, ratings] = await Promise.all([
+          getDocs(collection(db, "influencerProfiles")),
+          getRatingsByInfluencer(),
+        ]);
 
         const influencerList = querySnapshot.docs.map((profileDoc) => ({
           id: profileDoc.id,
@@ -53,6 +56,7 @@ export default function BrowseInfluencers() {
         }));
 
         setInfluencers(influencerList);
+        setRatingsByInfluencer(ratings);
       } catch (err) {
         console.error("Error loading influencers:", err);
         setError(err.message);
@@ -217,6 +221,15 @@ export default function BrowseInfluencers() {
         filteredInfluencers.map((influencer) => (
           <div key={influencer.id}>
             <h3>{influencer.name}</h3>
+
+            {ratingsByInfluencer[influencer.uid || influencer.id] ? (
+              <p>
+                Rating: {ratingsByInfluencer[influencer.uid || influencer.id].average.toFixed(1)} / 5
+                {" "}({ratingsByInfluencer[influencer.uid || influencer.id].count} {ratingsByInfluencer[influencer.uid || influencer.id].count === 1 ? "review" : "reviews"})
+              </p>
+            ) : (
+              <p>No reviews yet.</p>
+            )}
 
             <p>Niche: {influencer.niche}</p>
 
