@@ -6,6 +6,8 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  query,
+  where,
 } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -40,6 +42,7 @@ export default function BrowseInfluencers() {
   const [sendingId, setSendingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Load all influencers
   useEffect(() => {
@@ -75,7 +78,13 @@ export default function BrowseInfluencers() {
       return;
     }
 
+    if (!message.trim()) {
+      setError("Please enter a collaboration message.");
+      return;
+    }
+
     setError("");
+    setSuccess("");
     setSendingId(influencer.id);
 
     try {
@@ -110,6 +119,23 @@ export default function BrowseInfluencers() {
 
       const brandData = brandSnap.data();
 
+      const existingRequests = await getDocs(
+        query(
+          collection(db, "requests"),
+          where("brandId", "==", user.uid),
+          where("influencerId", "==", influencer.uid)
+        )
+      );
+
+      const hasActiveRequest = existingRequests.docs.some((requestDoc) => {
+        const status = requestDoc.data().status;
+        return status === "pending" || status === "accepted";
+      });
+
+      if (hasActiveRequest) {
+        throw new Error("You already have an active request with this influencer.");
+      }
+
       // Create a new request document
       await addDoc(collection(db, "requests"), {
         brandId: user.uid,
@@ -124,7 +150,7 @@ export default function BrowseInfluencers() {
         createdAt: serverTimestamp(),
       });
 
-      alert(`Request sent to ${influencer.name}!`);
+      setSuccess(`Request sent to ${influencer.name}.`);
 
       setMessage("");
     } catch (err) {
@@ -214,6 +240,7 @@ export default function BrowseInfluencers() {
       <hr />
 
       {error && <p>{error}</p>}
+      {success && <p>{success}</p>}
 
       {filteredInfluencers.length === 0 ? (
         <p>No influencers found.</p>
