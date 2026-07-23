@@ -10,6 +10,8 @@ import BrowseInfluencers from "./pages/BrowseInfluencers";
 import IncomingRequests from "./pages/IncomingRequests";
 import MyRequests from "./pages/MyRequests";
 import Navbar from "./components/Navbar";
+import BrandDashboard from "./pages/BrandDashboard";
+import InfluencerDashboard from "./pages/InfluencerDashboard";
 
 function App() {
   return (
@@ -51,6 +53,13 @@ function App() {
         <Route path="/matches" element={<Matches />} />
 
         <Route path="/chat/:requestId" element={<Chat />} />
+
+        <Route path="/dashboard/brand" element={<BrandDashboard />} />
+
+        <Route
+          path="/dashboard/influencer"
+          element={<InfluencerDashboard />}
+        />
       </Routes>
     </>
   );

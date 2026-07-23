@@ -14,6 +14,7 @@ export default function Navbar() {
     <nav>
       {role === "brand" && (
         <>
+          <NavLink to="/dashboard/brand">Dashboard</NavLink>{" "}
           <NavLink to="/profile/brand">Brand Profile</NavLink>{" "}
           <NavLink to="/influencers">Browse Influencers</NavLink>{" "}
           <NavLink to="/matches">Matches</NavLink>{" "}
@@ -23,6 +24,7 @@ export default function Navbar() {
 
       {role === "influencer" && (
         <>
+          <NavLink to="/dashboard/influencer">Dashboard</NavLink>{" "}
           <NavLink to="/profile/influencer">Influencer Profile</NavLink>{" "}
           <NavLink to="/incoming-requests">Incoming Requests</NavLink>{" "}
         </>

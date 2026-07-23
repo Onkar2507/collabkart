@@ -44,9 +44,9 @@ export default function Login() {
 
       // Step 4: Redirect based on role
       if (role === "influencer") {
-        navigate("/profile/influencer");
+        navigate("/dashboard/influencer");
       } else if (role === "brand") {
-        navigate("/profile/brand");
+        navigate("/dashboard/brand");
       } else {
         setError("Invalid user role.");
       }
