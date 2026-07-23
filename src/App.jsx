@@ -1,5 +1,6 @@
 import Matches from "./pages/Matches";
 import { Routes, Route, Navigate } from "react-router-dom";
+import Chat from "./pages/Chat";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -8,45 +9,50 @@ import BrandProfile from "./pages/BrandProfile";
 import BrowseInfluencers from "./pages/BrowseInfluencers";
 import IncomingRequests from "./pages/IncomingRequests";
 import MyRequests from "./pages/MyRequests";
+import Navbar from "./components/Navbar";
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" />} />
+    <>
+      <Navbar />
 
-      <Route path="/login" element={<Login />} />
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" />} />
 
-      <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
 
-      <Route
-        path="/profile/influencer"
-        element={<InfluencerProfile />}
-      />
+        <Route path="/signup" element={<Signup />} />
 
-      <Route
-        path="/profile/brand"
-        element={<BrandProfile />}
-      />
+        <Route
+          path="/profile/influencer"
+          element={<InfluencerProfile />}
+        />
 
-      <Route
-        path="/influencers"
-        element={<BrowseInfluencers />}
-      />
+        <Route
+          path="/profile/brand"
+          element={<BrandProfile />}
+        />
 
-      <Route
-        path="/incoming-requests"
-        element={<IncomingRequests />}
-      />
+        <Route
+          path="/influencers"
+          element={<BrowseInfluencers />}
+        />
 
-      <Route
-        path="/my-requests"
-        element={<MyRequests />}
-      />
-      <Route
-  path="/matches"
-  element={<Matches />}
-/>
-    </Routes>
+        <Route
+          path="/incoming-requests"
+          element={<IncomingRequests />}
+        />
+
+        <Route
+          path="/my-requests"
+          element={<MyRequests />}
+        />
+
+        <Route path="/matches" element={<Matches />} />
+
+        <Route path="/chat/:requestId" element={<Chat />} />
+      </Routes>
+    </>
   );
 }
 

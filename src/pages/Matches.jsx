@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import {
   collection,
   getDocs,
+  addDoc,
+  serverTimestamp,
   doc,
   getDoc,
+  query,
+  where,
 } from "firebase/firestore";
 
 import { db } from "../firebase";
@@ -14,7 +18,10 @@ export default function Matches() {
 
   const [matches, setMatches] = useState([]);
   const [brand, setBrand] = useState(null);
+
   const [loading, setLoading] = useState(true);
+  const [sendingId, setSendingId] = useState(null);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -22,7 +29,7 @@ export default function Matches() {
 
     const loadMatches = async () => {
       try {
-        // 1. Load brand profile
+        // Load brand profile
         const brandSnap = await getDoc(
           doc(db, "brandProfiles", user.uid)
         );
@@ -34,7 +41,7 @@ export default function Matches() {
         const brandData = brandSnap.data();
         setBrand(brandData);
 
-        // 2. Load influencers
+        // Load influencers
         const influencerSnap = await getDocs(
           collection(db, "influencerProfiles")
         );
@@ -44,7 +51,7 @@ export default function Matches() {
           ...profileDoc.data(),
         }));
 
-        // 3. Calculate match score
+        // Calculate scores
         const scoredInfluencers = influencers.map((influencer) => {
           let nicheScore = 0;
           let budgetScore = 0;
@@ -52,7 +59,7 @@ export default function Matches() {
           let followerScore = 0;
 
           // -------------------------
-          // NICHE SCORE — MAX 35
+          // NICHE — MAX 35
           // -------------------------
 
           if (influencer.niche === brandData.niche) {
@@ -60,7 +67,7 @@ export default function Matches() {
           }
 
           // -------------------------
-          // BUDGET SCORE — MAX 25
+          // BUDGET — MAX 25
           // -------------------------
 
           const rate = Number(influencer.rate);
@@ -77,7 +84,7 @@ export default function Matches() {
           }
 
           // -------------------------
-          // LOCATION SCORE — MAX 25
+          // LOCATION — MAX 25
           // -------------------------
 
           const brandLocation = (brandData.location || "")
@@ -96,31 +103,24 @@ export default function Matches() {
           const influencerCity = influencerLocation[0] || "";
           const influencerState = influencerLocation[1] || "";
 
-          // Same city
           if (
             brandCity &&
             influencerCity &&
             brandCity === influencerCity
           ) {
             locationScore = 25;
-          }
-
-          // Same state
-          else if (
+          } else if (
             brandState &&
             influencerState &&
             brandState === influencerState
           ) {
             locationScore = 18;
-          }
-
-          // Different state
-          else {
+          } else {
             locationScore = 5;
           }
 
           // -------------------------
-          // FOLLOWER SCORE — MAX 15
+          // FOLLOWERS — MAX 15
           // -------------------------
 
           switch (influencer.followerRange) {
@@ -148,10 +148,6 @@ export default function Matches() {
               followerScore = 0;
           }
 
-          // -------------------------
-          // FINAL SCORE
-          // -------------------------
-
           const matchScore =
             nicheScore +
             budgetScore +
@@ -172,12 +168,13 @@ export default function Matches() {
           };
         });
 
-        // 4. Highest score first
+        // Highest score first
         scoredInfluencers.sort(
           (a, b) => b.matchScore - a.matchScore
         );
 
-        setMatches(scoredInfluencers);
+        // Only show Top 20
+        setMatches(scoredInfluencers.slice(0, 20));
       } catch (err) {
         console.error("Error finding matches:", err);
         setError(err.message);
@@ -189,18 +186,117 @@ export default function Matches() {
     loadMatches();
   }, [user]);
 
+  // -------------------------
+  // MATCH LABEL
+  // -------------------------
+
+  const getMatchLabel = (score) => {
+    if (score >= 85) return "Excellent Match";
+    if (score >= 70) return "Good Match";
+    if (score >= 50) return "Fair Match";
+
+    return "Low Match";
+  };
+
+  // -------------------------
+  // SEND REQUEST
+  // -------------------------
+
+  const handleSendRequest = async (influencer) => {
+    if (!user) {
+      setError("You must be logged in.");
+      return;
+    }
+
+    if (!message.trim()) {
+      setError("Please enter a collaboration message.");
+      return;
+    }
+
+    setError("");
+    setSendingId(influencer.id);
+
+    try {
+      // Make sure logged-in account is a brand
+      const userSnap = await getDoc(
+        doc(db, "users", user.uid)
+      );
+
+      if (!userSnap.exists()) {
+        throw new Error("User account not found.");
+      }
+
+      if (userSnap.data().role !== "brand") {
+        throw new Error(
+          "Only brand accounts can send collaboration requests."
+        );
+      }
+
+      // Check for an existing active request
+      const existingRequestQuery = query(
+        collection(db, "requests"),
+        where("brandId", "==", user.uid),
+        where("influencerId", "==", influencer.uid)
+      );
+
+      const existingSnapshot = await getDocs(
+        existingRequestQuery
+      );
+
+      const alreadyExists = existingSnapshot.docs.some(
+        (requestDoc) => {
+          const status = requestDoc.data().status;
+
+          return (
+            status === "pending" ||
+            status === "accepted"
+          );
+        }
+      );
+
+      if (alreadyExists) {
+        throw new Error(
+          "You already have an active request with this influencer."
+        );
+      }
+
+      // Create request
+      await addDoc(collection(db, "requests"), {
+        brandId: user.uid,
+        influencerId: influencer.uid,
+
+        brandName: brand.companyName,
+        influencerName: influencer.name,
+
+        message: message.trim(),
+        status: "pending",
+
+        matchScore: influencer.matchScore,
+
+        createdAt: serverTimestamp(),
+      });
+
+      alert(`Request sent to ${influencer.name}!`);
+
+      setMessage("");
+    } catch (err) {
+      console.error("Error sending request:", err);
+      setError(err.message);
+    } finally {
+      setSendingId(null);
+    }
+  };
+
   if (!user || loading) {
     return <p>Finding your best matches...</p>;
   }
 
   return (
     <div>
-      <h2>Recommended Influencers</h2>
-
-      {error && <p>{error}</p>}
+      <h2>Top Recommended Influencers</h2>
 
       {brand && (
-        <div>
+        <>
           <p>
             Brand: <strong>{brand.companyName}</strong>
           </p>
@@ -214,16 +310,26 @@ export default function Matches() {
           </p>
 
           <p>
-            Campaign Budget:{" "}
-            <strong>₹{brand.budget}</strong>
+            Budget: <strong>₹{brand.budget}</strong>
           </p>
-
-          <hr />
-        </div>
+        </>
       )}
 
+      <br />
+
+      <textarea
+        placeholder="Write a collaboration message..."
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={3}
+      />
+
+      {error && <p>{error}</p>}
+
+      <hr />
+
       {matches.length === 0 ? (
-        <p>No influencers found.</p>
+        <p>No matches found.</p>
       ) : (
         matches.map((influencer, index) => (
           <div key={influencer.id}>
@@ -232,12 +338,15 @@ export default function Matches() {
             </h3>
 
             <h4>
-              Match Score: {influencer.matchScore}%
+              {influencer.matchScore}% —{" "}
+              {getMatchLabel(influencer.matchScore)}
             </h4>
 
             <p>Niche: {influencer.niche}</p>
 
-            <p>Location: {influencer.location}</p>
+            <p>
+              Location: {influencer.location}
+            </p>
 
             <p>
               Followers: {influencer.followerRange}
@@ -245,27 +354,36 @@ export default function Matches() {
 
             <p>Rate: ₹{influencer.rate}</p>
 
-            <p>{influencer.bio}</p>
+            <p>Bio: {influencer.bio}</p>
 
             <p>
-              Niche Score:{" "}
-              {influencer.scoreBreakdown.niche}/35
+              Niche: {influencer.scoreBreakdown.niche}/35
             </p>
 
             <p>
-              Budget Score:{" "}
-              {influencer.scoreBreakdown.budget}/25
+              Budget: {influencer.scoreBreakdown.budget}/25
             </p>
 
             <p>
-              Location Score:{" "}
+              Location:{" "}
               {influencer.scoreBreakdown.location}/25
             </p>
 
             <p>
-              Follower Score:{" "}
+              Followers:{" "}
               {influencer.scoreBreakdown.followers}/15
             </p>
+
+            <button
+              onClick={() =>
+                handleSendRequest(influencer)
+              }
+              disabled={sendingId === influencer.id}
+            >
+              {sendingId === influencer.id
+                ? "Sending..."
+                : "Send Collaboration Request"}
+            </button>
 
             <hr />
           </div>

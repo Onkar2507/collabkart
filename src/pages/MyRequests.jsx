@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   getDocs,
@@ -11,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function MyRequests() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +69,12 @@ export default function MyRequests() {
             </p>
 
             <p>Status: {request.status}</p>
+
+            {request.status === "accepted" && (
+              <button onClick={() => navigate(`/chat/${request.id}`)}>
+                Open Chat
+              </button>
+            )}
 
             <hr />
           </div>

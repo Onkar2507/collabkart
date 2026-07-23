@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   collection,
   getDocs,
@@ -13,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function IncomingRequests() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +52,8 @@ export default function IncomingRequests() {
 
   const handleStatus = async (requestId, newStatus) => {
     try {
+      setError("");
+
       await updateDoc(doc(db, "requests", requestId), {
         status: newStatus,
       });
@@ -109,6 +114,16 @@ export default function IncomingRequests() {
                   Reject
                 </button>
               </>
+            )}
+
+            {request.status === "accepted" && (
+              <button
+                onClick={() =>
+                  navigate(`/chat/${request.id}`)
+                }
+              >
+                Open Chat
+              </button>
             )}
 
             <hr />
