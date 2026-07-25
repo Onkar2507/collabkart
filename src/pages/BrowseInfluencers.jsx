@@ -44,7 +44,6 @@ export default function BrowseInfluencers() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Load all influencers
   useEffect(() => {
     const loadInfluencers = async () => {
       try {
@@ -71,7 +70,6 @@ export default function BrowseInfluencers() {
     loadInfluencers();
   }, []);
 
-  // Send collaboration request
   const handleSendRequest = async (influencer) => {
     if (!user) {
       setError("You must be logged in.");
@@ -88,7 +86,6 @@ export default function BrowseInfluencers() {
     setSendingId(influencer.id);
 
     try {
-      // Get logged-in user's account information
       const userSnap = await getDoc(
         doc(db, "users", user.uid)
       );
@@ -99,14 +96,12 @@ export default function BrowseInfluencers() {
 
       const userData = userSnap.data();
 
-      // Only brands should send collaboration requests
       if (userData.role !== "brand") {
         throw new Error(
           "Only brand accounts can send collaboration requests."
         );
       }
 
-      // Get brand profile so we can store company name
       const brandSnap = await getDoc(
         doc(db, "brandProfiles", user.uid)
       );
@@ -127,16 +122,23 @@ export default function BrowseInfluencers() {
         )
       );
 
-      const hasActiveRequest = existingRequests.docs.some((requestDoc) => {
-        const status = requestDoc.data().status;
-        return status === "pending" || status === "accepted";
-      });
+      const hasActiveRequest = existingRequests.docs.some(
+        (requestDoc) => {
+          const status = requestDoc.data().status;
+
+          return (
+            status === "pending" ||
+            status === "accepted"
+          );
+        }
+      );
 
       if (hasActiveRequest) {
-        throw new Error("You already have an active request with this influencer.");
+        throw new Error(
+          "You already have an active request with this influencer."
+        );
       }
 
-      // Create a new request document
       await addDoc(collection(db, "requests"), {
         brandId: user.uid,
         influencerId: influencer.uid,
@@ -150,7 +152,9 @@ export default function BrowseInfluencers() {
         createdAt: serverTimestamp(),
       });
 
-      setSuccess(`Request sent to ${influencer.name}.`);
+      setSuccess(
+        `Request sent to ${influencer.name}.`
+      );
 
       setMessage("");
     } catch (err) {
@@ -161,132 +165,360 @@ export default function BrowseInfluencers() {
     }
   };
 
-  // Search + filters
-  const filteredInfluencers = influencers.filter((influencer) => {
-    const searchText = search.toLowerCase();
+  const filteredInfluencers = influencers.filter(
+    (influencer) => {
+      const searchText = search.toLowerCase();
 
-    const matchesSearch =
-      influencer.name
-        ?.toLowerCase()
-        .includes(searchText) ||
-      influencer.location
-        ?.toLowerCase()
-        .includes(searchText);
+      const matchesSearch =
+        influencer.name
+          ?.toLowerCase()
+          .includes(searchText) ||
+        influencer.location
+          ?.toLowerCase()
+          .includes(searchText);
 
-    const matchesNiche =
-      niche === "All" ||
-      influencer.niche === niche;
+      const matchesNiche =
+        niche === "All" ||
+        influencer.niche === niche;
 
-    const matchesRate =
-      maxRate === "" ||
-      Number(influencer.rate) <= Number(maxRate);
+      const matchesRate =
+        maxRate === "" ||
+        Number(influencer.rate) <= Number(maxRate);
 
-    return (
-      matchesSearch &&
-      matchesNiche &&
-      matchesRate
-    );
-  });
+      return (
+        matchesSearch &&
+        matchesNiche &&
+        matchesRate
+      );
+    }
+  );
 
   if (loading) {
-    return <p>Loading influencers...</p>;
+    return (
+      <main className="page-container">
+        <div className="dashboard-loading">
+          Loading creators...
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div>
-      <h2>Browse Influencers</h2>
+    <main className="page-container discover-page">
 
-      <input
-        type="text"
-        placeholder="Search by name or location"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      {/* Header */}
 
-      <br />
-      <br />
+      <header className="discover-header">
+        <div>
+          <span className="dashboard-eyebrow">
+            CREATOR DISCOVERY
+          </span>
 
-      <select
-        value={niche}
-        onChange={(e) => setNiche(e.target.value)}
-      >
-        {NICHES.map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </select>
+          <h1>Discover Creators</h1>
 
-      <br />
-      <br />
+          <p>
+            Find influencers that fit your campaign,
+            audience and budget.
+          </p>
+        </div>
 
-      <input
-        type="number"
-        placeholder="Maximum rate (₹)"
-        value={maxRate}
-        onChange={(e) => setMaxRate(e.target.value)}
-      />
+        <div className="discover-count">
+          <strong>
+            {filteredInfluencers.length}
+          </strong>
 
-      <br />
-      <br />
+          <span>
+            {filteredInfluencers.length === 1
+              ? "creator found"
+              : "creators found"}
+          </span>
+        </div>
+      </header>
 
-      <textarea
-        placeholder="Collaboration message"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        rows={3}
-      />
 
-      <hr />
+      {/* Search and Filters */}
 
-      {error && <p>{error}</p>}
-      {success && <p>{success}</p>}
+      <section className="discover-filters card">
 
-      {filteredInfluencers.length === 0 ? (
-        <p>No influencers found.</p>
-      ) : (
-        filteredInfluencers.map((influencer) => (
-          <div key={influencer.id}>
-            <h3>{influencer.name}</h3>
+        <div className="discover-search-field">
+          <label htmlFor="creator-search">
+            Search creators
+          </label>
 
-            {ratingsByInfluencer[influencer.uid || influencer.id] ? (
-              <p>
-                Rating: {ratingsByInfluencer[influencer.uid || influencer.id].average.toFixed(1)} / 5
-                {" "}({ratingsByInfluencer[influencer.uid || influencer.id].count} {ratingsByInfluencer[influencer.uid || influencer.id].count === 1 ? "review" : "reviews"})
-              </p>
-            ) : (
-              <p>No reviews yet.</p>
+          <div className="discover-input-wrap">
+            <span>⌕</span>
+
+            <input
+              id="creator-search"
+              type="text"
+              placeholder="Search by name or location"
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+            />
+          </div>
+        </div>
+
+
+        <div className="discover-filter-field">
+          <label htmlFor="creator-niche">
+            Niche
+          </label>
+
+          <select
+            id="creator-niche"
+            value={niche}
+            onChange={(e) =>
+              setNiche(e.target.value)
+            }
+          >
+            {NICHES.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+
+
+        <div className="discover-filter-field">
+          <label htmlFor="creator-rate">
+            Maximum Rate
+          </label>
+
+          <input
+            id="creator-rate"
+            type="number"
+            placeholder="₹ Any budget"
+            value={maxRate}
+            onChange={(e) =>
+              setMaxRate(e.target.value)
+            }
+          />
+        </div>
+
+      </section>
+
+
+      {/* Collaboration Message */}
+
+      <section className="collaboration-message-box card">
+
+        <div className="collaboration-message-header">
+          <div>
+            <h2>Collaboration Message</h2>
+
+            <p>
+              This message will be sent with your
+              collaboration request.
+            </p>
+          </div>
+
+          <span>
+            {message.length} characters
+          </span>
+        </div>
+
+        <textarea
+          placeholder="Tell creators about your campaign, deliverables and what you're looking for..."
+          value={message}
+          onChange={(e) =>
+            setMessage(e.target.value)
+          }
+          rows={3}
+        />
+
+      </section>
+
+
+      {/* Messages */}
+
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="alert alert-success">
+          {success}
+        </div>
+      )}
+
+
+      {/* Creator Results */}
+
+      <section className="discover-results">
+
+        <div className="discover-results-header">
+          <div>
+            <h2>Creators</h2>
+
+            <p>
+              Browse profiles and send collaboration
+              requests directly.
+            </p>
+          </div>
+        </div>
+
+
+        {filteredInfluencers.length === 0 ? (
+
+          <div className="dashboard-empty card">
+
+            <div className="dashboard-empty-icon">
+              ⌕
+            </div>
+
+            <h3>No creators found</h3>
+
+            <p>
+              Try changing your search, niche or
+              maximum rate.
+            </p>
+
+          </div>
+
+        ) : (
+
+          <div className="discover-creator-grid">
+
+            {filteredInfluencers.map(
+              (influencer) => {
+                const rating =
+                  ratingsByInfluencer[
+                    influencer.uid ||
+                      influencer.id
+                  ];
+
+                const initial =
+                  (influencer.name || "C")
+                    .charAt(0)
+                    .toUpperCase();
+
+                return (
+
+                  <article
+                    className="discover-creator-card card"
+                    key={influencer.id}
+                  >
+
+                    <div className="discover-card-top">
+
+                      <div className="discover-creator-identity">
+
+                        <div className="discover-creator-avatar">
+                          {initial}
+                        </div>
+
+                        <div>
+                          <h3>
+                            {influencer.name}
+                          </h3>
+
+                          <span>
+                            {influencer.niche ||
+                              "Creator"}
+                          </span>
+                        </div>
+
+                      </div>
+
+
+                      <div className="discover-rating">
+                        {rating ? (
+                          <>
+                            <strong>
+                              ★{" "}
+                              {rating.average.toFixed(
+                                1
+                              )}
+                            </strong>
+
+                            <span>
+                              {rating.count}{" "}
+                              {rating.count === 1
+                                ? "review"
+                                : "reviews"}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <strong>New</strong>
+                            <span>
+                              No reviews yet
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                    </div>
+
+
+                    <p className="discover-bio">
+                      {influencer.bio ||
+                        "This creator hasn't added a bio yet."}
+                    </p>
+
+
+                    <div className="discover-meta">
+
+                      <div>
+                        <span>Location</span>
+                        <strong>
+                          {influencer.location ||
+                            "Not specified"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Followers</span>
+                        <strong>
+                          {influencer.followerRange ||
+                            "Not specified"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Rate</span>
+                        <strong>
+                          ₹{influencer.rate || "—"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    <button
+                      type="button"
+                      className="btn btn-primary discover-request-button"
+                      onClick={() =>
+                        handleSendRequest(
+                          influencer
+                        )
+                      }
+                      disabled={
+                        sendingId === influencer.id
+                      }
+                    >
+                      {sendingId === influencer.id
+                        ? "Sending..."
+                        : "Send Collaboration Request"}
+                    </button>
+
+                  </article>
+
+                );
+              }
             )}
 
-            <p>Niche: {influencer.niche}</p>
-
-            <p>
-              Location: {influencer.location}
-            </p>
-
-            <p>
-              Followers: {influencer.followerRange}
-            </p>
-
-            <p>Bio: {influencer.bio}</p>
-
-            <p>Rate: ₹{influencer.rate}</p>
-
-            <button
-              onClick={() =>
-                handleSendRequest(influencer)
-              }
-              disabled={sendingId === influencer.id}
-            >
-              {sendingId === influencer.id
-                ? "Sending..."
-                : "Send Collaboration Request"}
-            </button>
-
-            <hr />
           </div>
-        ))
-      )}
-    </div>
+
+        )}
+
+      </section>
+
+    </main>
   );
 }

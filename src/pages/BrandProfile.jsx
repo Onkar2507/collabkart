@@ -34,12 +34,10 @@ export default function BrandProfile() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Load existing brand profile
   useEffect(() => {
-    if (!user) {
-      return;
-    }
+    if (!user) return;
 
     const loadProfile = async () => {
       try {
@@ -61,7 +59,11 @@ export default function BrandProfile() {
           setGoals(data.goals || "");
         }
       } catch (err) {
-        console.error("Error loading brand profile:", err);
+        console.error(
+          "Error loading brand profile:",
+          err
+        );
+
         setError(err.message);
       } finally {
         setLoading(false);
@@ -71,108 +73,336 @@ export default function BrandProfile() {
     loadProfile();
   }, [user]);
 
-  if (!user || loading) {
-    return <p>Loading...</p>;
-  }
-
-  // Create or update brand profile
   const handleSave = async (e) => {
     e.preventDefault();
 
     setError("");
     setSaved(false);
+    setSaving(true);
 
     try {
-      await setDoc(doc(db, "brandProfiles", user.uid), {
-        uid: user.uid,
-        companyName,
-        niche,
-        location,
-        budget: Number(budget),
-        goals,
-        updatedAt: serverTimestamp(),
-      });
+      await setDoc(
+        doc(db, "brandProfiles", user.uid),
+        {
+          uid: user.uid,
+          companyName: companyName.trim(),
+          niche,
+          location: location.trim(),
+          budget: Number(budget),
+          goals: goals.trim(),
+          updatedAt: serverTimestamp(),
+        }
+      );
 
-      console.log("Brand profile saved:", user.uid);
       setSaved(true);
     } catch (err) {
-      console.error("Error saving brand profile:", err);
+      console.error(
+        "Error saving brand profile:",
+        err
+      );
+
       setError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
+  if (!user || loading) {
+    return (
+      <main className="page-container">
+        <div className="dashboard-loading">
+          Loading brand profile...
+        </div>
+      </main>
+    );
+  }
+
+  const brandInitial = (companyName || "B")
+    .charAt(0)
+    .toUpperCase();
+
   return (
-    <div>
-      <h2>Brand Profile</h2>
+    <main className="page-container brand-profile-page">
 
-      {saved && <p>Profile saved successfully!</p>}
+      <header className="profile-page-header">
+        <div>
+          <span className="dashboard-eyebrow">
+            BRAND SETTINGS
+          </span>
 
-      <form onSubmit={handleSave}>
-        <input
-          type="text"
-          placeholder="Company name"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          required
-        />
+          <h1>Brand Profile</h1>
 
-        <br />
-        <br />
+          <p>
+            Manage your brand information and campaign
+            preferences used for creator matching.
+          </p>
+        </div>
+      </header>
 
-        <select
-          value={niche}
-          onChange={(e) => setNiche(e.target.value)}
-        >
-          {NICHES.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
+      {saved && (
+        <div className="alert alert-success">
+          Profile saved successfully.
+        </div>
+      )}
 
-        <br />
-        <br />
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
+      )}
 
-        <input
-          type="text"
-          placeholder="City, State (e.g. Pune, Maharashtra)"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          required
-        />
+      <div className="brand-profile-layout">
 
-        <br />
-        <br />
+        {/* Left Profile Preview */}
 
-        <input
-          type="number"
-          placeholder="Campaign budget (₹)"
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          min="1"
-          required
-        />
+        <aside className="brand-profile-preview card">
 
-        <br />
-        <br />
+          <div className="brand-profile-avatar">
+            {brandInitial}
+          </div>
 
-        <textarea
-          placeholder="What are your campaign goals?"
-          value={goals}
-          onChange={(e) => setGoals(e.target.value)}
-          rows={4}
-          required
-        />
+          <h2>
+            {companyName || "Your Brand"}
+          </h2>
 
-        <br />
-        <br />
+          <p className="brand-profile-type">
+            Brand Account
+          </p>
 
-        <button type="submit">
-          Save Profile
-        </button>
-      </form>
+          <div className="brand-profile-preview-info">
 
-      {error && <p>{error}</p>}
-    </div>
+            <div>
+              <span>Niche</span>
+              <strong>
+                {niche || "Not specified"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Location</span>
+              <strong>
+                {location || "Not specified"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Campaign Budget</span>
+              <strong>
+                {budget
+                  ? `₹${Number(
+                      budget
+                    ).toLocaleString("en-IN")}`
+                  : "Not specified"}
+              </strong>
+            </div>
+
+          </div>
+
+          <div className="profile-match-note">
+            <div className="profile-match-note-icon">
+              ◇
+            </div>
+
+            <div>
+              <strong>
+                Used for smart matching
+              </strong>
+
+              <p>
+                Your niche, location and budget help
+                CollabKart rank relevant creators.
+              </p>
+            </div>
+          </div>
+
+        </aside>
+
+
+        {/* Form */}
+
+        <section className="brand-profile-form-card card">
+
+          <div className="profile-form-heading">
+            <h2>Brand Information</h2>
+
+            <p>
+              Keep these details accurate to improve
+              your creator recommendations.
+            </p>
+          </div>
+
+
+          <form
+            className="profile-form"
+            onSubmit={handleSave}
+          >
+
+            <div className="profile-field profile-field-full">
+
+              <label htmlFor="companyName">
+                Company Name
+              </label>
+
+              <input
+                id="companyName"
+                type="text"
+                placeholder="Enter your company name"
+                value={companyName}
+                onChange={(e) =>
+                  setCompanyName(e.target.value)
+                }
+                required
+              />
+
+            </div>
+
+
+            <div className="profile-form-row">
+
+              <div className="profile-field">
+
+                <label htmlFor="brandNiche">
+                  Brand Niche
+                </label>
+
+                <select
+                  id="brandNiche"
+                  value={niche}
+                  onChange={(e) =>
+                    setNiche(e.target.value)
+                  }
+                >
+                  {NICHES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+
+                <small>
+                  Used as the strongest matching factor.
+                </small>
+
+              </div>
+
+
+              <div className="profile-field">
+
+                <label htmlFor="location">
+                  Location
+                </label>
+
+                <input
+                  id="location"
+                  type="text"
+                  placeholder="Pune, Maharashtra"
+                  value={location}
+                  onChange={(e) =>
+                    setLocation(e.target.value)
+                  }
+                  required
+                />
+
+                <small>
+                  Use City, State for better matching.
+                </small>
+
+              </div>
+
+            </div>
+
+
+            <div className="profile-field profile-field-full">
+
+              <label htmlFor="budget">
+                Campaign Budget
+              </label>
+
+              <div className="budget-input-wrapper">
+
+                <span>₹</span>
+
+                <input
+                  id="budget"
+                  type="number"
+                  placeholder="30000"
+                  value={budget}
+                  onChange={(e) =>
+                    setBudget(e.target.value)
+                  }
+                  min="1"
+                  required
+                />
+
+              </div>
+
+              <small>
+                Creators are ranked partly by how well
+                their rate fits this budget.
+              </small>
+
+            </div>
+
+
+            <div className="profile-field profile-field-full">
+
+              <div className="profile-label-row">
+
+                <label htmlFor="goals">
+                  Campaign Goals
+                </label>
+
+                <span>
+                  {goals.length} characters
+                </span>
+
+              </div>
+
+              <textarea
+                id="goals"
+                placeholder="Describe what you want to achieve with your creator campaigns..."
+                value={goals}
+                onChange={(e) =>
+                  setGoals(e.target.value)
+                }
+                rows={5}
+                required
+              />
+
+            </div>
+
+
+            <div className="profile-form-footer">
+
+              <div>
+                <strong>
+                  Matching preferences
+                </strong>
+
+                <span>
+                  Changes will affect future creator
+                  recommendations.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={saving}
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save Changes"}
+              </button>
+
+            </div>
+
+          </form>
+
+        </section>
+
+      </div>
+
+    </main>
   );
 }

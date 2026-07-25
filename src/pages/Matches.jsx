@@ -25,13 +25,13 @@ export default function Matches() {
   const [sendingId, setSendingId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     if (!user) return;
 
     const loadMatches = async () => {
       try {
-        // Load brand profile
         const brandSnap = await getDoc(
           doc(db, "brandProfiles", user.uid)
         );
@@ -43,7 +43,6 @@ export default function Matches() {
         const brandData = brandSnap.data();
         setBrand(brandData);
 
-        // Load influencers
         const [influencerSnap, ratings] = await Promise.all([
           getDocs(collection(db, "influencerProfiles")),
           getRatingsByInfluencer(),
@@ -56,25 +55,18 @@ export default function Matches() {
 
         setRatingsByInfluencer(ratings);
 
-        // Calculate scores
         const scoredInfluencers = influencers.map((influencer) => {
           let nicheScore = 0;
           let budgetScore = 0;
           let locationScore = 0;
           let followerScore = 0;
 
-          // -------------------------
           // NICHE — MAX 35
-          // -------------------------
-
           if (influencer.niche === brandData.niche) {
             nicheScore = 35;
           }
 
-          // -------------------------
           // BUDGET — MAX 25
-          // -------------------------
-
           const rate = Number(influencer.rate);
           const budget = Number(brandData.budget);
 
@@ -88,10 +80,7 @@ export default function Matches() {
             budgetScore = 8;
           }
 
-          // -------------------------
           // LOCATION — MAX 25
-          // -------------------------
-
           const brandLocation = (brandData.location || "")
             .toLowerCase()
             .split(",")
@@ -124,10 +113,7 @@ export default function Matches() {
             locationScore = 5;
           }
 
-          // -------------------------
           // FOLLOWERS — MAX 15
-          // -------------------------
-
           switch (influencer.followerRange) {
             case "500k+":
               followerScore = 15;
@@ -173,12 +159,10 @@ export default function Matches() {
           };
         });
 
-        // Highest score first
         scoredInfluencers.sort(
           (a, b) => b.matchScore - a.matchScore
         );
 
-        // Only show Top 20
         setMatches(scoredInfluencers.slice(0, 20));
       } catch (err) {
         console.error("Error finding matches:", err);
@@ -191,10 +175,6 @@ export default function Matches() {
     loadMatches();
   }, [user]);
 
-  // -------------------------
-  // MATCH LABEL
-  // -------------------------
-
   const getMatchLabel = (score) => {
     if (score >= 85) return "Excellent Match";
     if (score >= 70) return "Good Match";
@@ -203,9 +183,13 @@ export default function Matches() {
     return "Low Match";
   };
 
-  // -------------------------
-  // SEND REQUEST
-  // -------------------------
+  const getMatchClass = (score) => {
+    if (score >= 85) return "excellent";
+    if (score >= 70) return "good";
+    if (score >= 50) return "fair";
+
+    return "low";
+  };
 
   const handleSendRequest = async (influencer) => {
     if (!user) {
@@ -219,10 +203,10 @@ export default function Matches() {
     }
 
     setError("");
+    setSuccess("");
     setSendingId(influencer.id);
 
     try {
-      // Make sure logged-in account is a brand
       const userSnap = await getDoc(
         doc(db, "users", user.uid)
       );
@@ -237,7 +221,6 @@ export default function Matches() {
         );
       }
 
-      // Check for an existing active request
       const existingRequestQuery = query(
         collection(db, "requests"),
         where("brandId", "==", user.uid),
@@ -265,7 +248,6 @@ export default function Matches() {
         );
       }
 
-      // Create request
       await addDoc(collection(db, "requests"), {
         brandId: user.uid,
         influencerId: influencer.uid,
@@ -281,7 +263,9 @@ export default function Matches() {
         createdAt: serverTimestamp(),
       });
 
-      alert(`Request sent to ${influencer.name}!`);
+      setSuccess(
+        `Collaboration request sent to ${influencer.name}.`
+      );
 
       setMessage("");
     } catch (err) {
@@ -293,116 +277,430 @@ export default function Matches() {
   };
 
   if (!user || loading) {
-    return <p>Finding your best matches...</p>;
+    return (
+      <main className="page-container">
+        <div className="dashboard-loading">
+          Finding your best matches...
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div>
-      <h2>Top Recommended Influencers</h2>
+    <main className="page-container matches-page">
+
+      {/* Header */}
+
+      <header className="matches-header">
+
+        <div>
+          <span className="dashboard-eyebrow">
+            SMART MATCHING
+          </span>
+
+          <h1>Your Best Creator Matches</h1>
+
+          <p>
+            Creators ranked using your niche, budget,
+            location and audience requirements.
+          </p>
+        </div>
+
+        <div className="matches-count">
+          <strong>{matches.length}</strong>
+          <span>top matches</span>
+        </div>
+
+      </header>
+
+
+      {/* Brand Campaign Summary */}
 
       {brand && (
-        <>
-          <p>
-            Brand: <strong>{brand.companyName}</strong>
-          </p>
+        <section className="match-brand-summary card">
 
-          <p>
-            Niche: <strong>{brand.niche}</strong>
-          </p>
+          <div className="match-brand-title">
+            <div className="match-brand-avatar">
+              {(brand.companyName || "B")
+                .charAt(0)
+                .toUpperCase()}
+            </div>
 
-          <p>
-            Location: <strong>{brand.location}</strong>
-          </p>
-
-          <p>
-            Budget: <strong>₹{brand.budget}</strong>
-          </p>
-        </>
-      )}
-
-      <br />
-
-      <textarea
-        placeholder="Write a collaboration message..."
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        rows={3}
-      />
-
-      {error && <p>{error}</p>}
-
-      <hr />
-
-      {matches.length === 0 ? (
-        <p>No matches found.</p>
-      ) : (
-        matches.map((influencer, index) => (
-          <div key={influencer.id}>
-            <h3>
-              #{index + 1} {influencer.name}
-            </h3>
-
-            <h4>
-              {influencer.matchScore}% —{" "}
-              {getMatchLabel(influencer.matchScore)}
-            </h4>
-
-            {ratingsByInfluencer[influencer.uid || influencer.id] ? (
-              <p>
-                Rating: {ratingsByInfluencer[influencer.uid || influencer.id].average.toFixed(1)} / 5
-                {" "}({ratingsByInfluencer[influencer.uid || influencer.id].count} {ratingsByInfluencer[influencer.uid || influencer.id].count === 1 ? "review" : "reviews"})
-              </p>
-            ) : (
-              <p>No reviews yet.</p>
-            )}
-
-            <p>Niche: {influencer.niche}</p>
-
-            <p>
-              Location: {influencer.location}
-            </p>
-
-            <p>
-              Followers: {influencer.followerRange}
-            </p>
-
-            <p>Rate: ₹{influencer.rate}</p>
-
-            <p>Bio: {influencer.bio}</p>
-
-            <p>
-              Niche: {influencer.scoreBreakdown.niche}/35
-            </p>
-
-            <p>
-              Budget: {influencer.scoreBreakdown.budget}/25
-            </p>
-
-            <p>
-              Location:{" "}
-              {influencer.scoreBreakdown.location}/25
-            </p>
-
-            <p>
-              Followers:{" "}
-              {influencer.scoreBreakdown.followers}/15
-            </p>
-
-            <button
-              onClick={() =>
-                handleSendRequest(influencer)
-              }
-              disabled={sendingId === influencer.id}
-            >
-              {sendingId === influencer.id
-                ? "Sending..."
-                : "Send Collaboration Request"}
-            </button>
-
-            <hr />
+            <div>
+              <span>Matching for</span>
+              <h2>{brand.companyName}</h2>
+            </div>
           </div>
-        ))
+
+
+          <div className="match-brand-details">
+
+            <div>
+              <span>Niche</span>
+              <strong>
+                {brand.niche || "Not specified"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Location</span>
+              <strong>
+                {brand.location || "Not specified"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Budget</span>
+              <strong>
+                ₹{brand.budget || "—"}
+              </strong>
+            </div>
+
+          </div>
+
+        </section>
       )}
+
+
+      {/* Message */}
+
+      <section className="match-message-box card">
+
+        <div className="collaboration-message-header">
+
+          <div>
+            <h2>Collaboration Message</h2>
+
+            <p>
+              Write the message you want to send
+              with a collaboration request.
+            </p>
+          </div>
+
+          <span>
+            {message.length} characters
+          </span>
+
+        </div>
+
+        <textarea
+          placeholder="Tell the creator about your campaign, goals and deliverables..."
+          value={message}
+          onChange={(e) =>
+            setMessage(e.target.value)
+          }
+          rows={3}
+        />
+
+      </section>
+
+
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="alert alert-success">
+          {success}
+        </div>
+      )}
+
+
+      {/* Match Results */}
+
+      <section className="match-results">
+
+        <div className="match-results-heading">
+          <div>
+            <h2>Recommended Creators</h2>
+
+            <p>
+              Ranked from strongest to weakest match.
+            </p>
+          </div>
+        </div>
+
+
+        {matches.length === 0 ? (
+
+          <div className="dashboard-empty card">
+            <div className="dashboard-empty-icon">
+              ◇
+            </div>
+
+            <h3>No matches found</h3>
+
+            <p>
+              Update your brand profile to improve
+              your creator recommendations.
+            </p>
+          </div>
+
+        ) : (
+
+          <div className="match-list">
+
+            {matches.map((influencer, index) => {
+              const rating =
+                ratingsByInfluencer[
+                  influencer.uid || influencer.id
+                ];
+
+              const matchClass =
+                getMatchClass(
+                  influencer.matchScore
+                );
+
+              const initial =
+                (influencer.name || "C")
+                  .charAt(0)
+                  .toUpperCase();
+
+              return (
+
+                <article
+                  className={`match-card card match-${matchClass}`}
+                  key={influencer.id}
+                >
+
+                  {/* Ranking */}
+
+                  <div className="match-rank">
+                    <span>#{index + 1}</span>
+                  </div>
+
+
+                  {/* Creator */}
+
+                  <div className="match-main">
+
+                    <div className="match-card-header">
+
+                      <div className="match-creator">
+
+                        <div className="match-creator-avatar">
+                          {initial}
+                        </div>
+
+                        <div>
+                          <h3>
+                            {influencer.name}
+                          </h3>
+
+                          <span>
+                            {influencer.niche || "Creator"}
+                          </span>
+                        </div>
+
+                      </div>
+
+
+                      <div className="match-score-area">
+
+                        <div
+                          className={`match-score-circle score-${matchClass}`}
+                        >
+                          <strong>
+                            {influencer.matchScore}%
+                          </strong>
+
+                          <span>MATCH</span>
+                        </div>
+
+                        <span
+                          className={`match-quality match-quality-${matchClass}`}
+                        >
+                          {getMatchLabel(
+                            influencer.matchScore
+                          )}
+                        </span>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* Bio */}
+
+                    <p className="match-bio">
+                      {influencer.bio ||
+                        "This creator hasn't added a bio yet."}
+                    </p>
+
+
+                    {/* Creator details */}
+
+                    <div className="match-profile-details">
+
+                      <div>
+                        <span>Location</span>
+                        <strong>
+                          {influencer.location ||
+                            "Not specified"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Followers</span>
+                        <strong>
+                          {influencer.followerRange ||
+                            "Not specified"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Rating</span>
+                        <strong>
+                          {rating
+                            ? `★ ${rating.average.toFixed(1)}`
+                            : "New"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Rate</span>
+                        <strong>
+                          ₹{influencer.rate || "—"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    {/* Score Breakdown */}
+
+                    <div className="score-breakdown">
+
+                      <div className="score-breakdown-title">
+                        <strong>
+                          Why this match?
+                        </strong>
+
+                        <span>
+                          Score breakdown
+                        </span>
+                      </div>
+
+
+                      <div className="score-breakdown-grid">
+
+                        <ScoreItem
+                          label="Niche"
+                          score={
+                            influencer.scoreBreakdown.niche
+                          }
+                          max={35}
+                        />
+
+                        <ScoreItem
+                          label="Budget"
+                          score={
+                            influencer.scoreBreakdown.budget
+                          }
+                          max={25}
+                        />
+
+                        <ScoreItem
+                          label="Location"
+                          score={
+                            influencer.scoreBreakdown.location
+                          }
+                          max={25}
+                        />
+
+                        <ScoreItem
+                          label="Followers"
+                          score={
+                            influencer.scoreBreakdown.followers
+                          }
+                          max={15}
+                        />
+
+                      </div>
+
+                    </div>
+
+
+                    {/* Footer */}
+
+                    <div className="match-card-footer">
+
+                      <span className="match-review-info">
+                        {rating
+                          ? `${rating.count} ${
+                              rating.count === 1
+                                ? "review"
+                                : "reviews"
+                            }`
+                          : "No reviews yet"}
+                      </span>
+
+
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() =>
+                          handleSendRequest(
+                            influencer
+                          )
+                        }
+                        disabled={
+                          sendingId === influencer.id
+                        }
+                      >
+                        {sendingId === influencer.id
+                          ? "Sending..."
+                          : "Send Collaboration Request"}
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                </article>
+
+              );
+            })}
+
+          </div>
+
+        )}
+
+      </section>
+
+    </main>
+  );
+}
+
+
+/* Reusable score item */
+
+function ScoreItem({ label, score, max }) {
+  const percentage =
+    max > 0 ? (score / max) * 100 : 0;
+
+  return (
+    <div className="score-item">
+
+      <div className="score-item-heading">
+        <span>{label}</span>
+
+        <strong>
+          {score}/{max}
+        </strong>
+      </div>
+
+      <div className="score-track">
+        <div
+          className="score-fill"
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+      </div>
+
     </div>
   );
 }
