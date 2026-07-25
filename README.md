@@ -1,16 +1,89 @@
-# React + Vite
+# CollabKart
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+CollabKart is a web application I built to connect brands with influencers for collaborations. Brands can discover creators, send collaboration requests, chat with them after a request is accepted, and give a review after the collaboration is completed.
 
-Currently, two official plugins are available:
+## Live Demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+You can check the live project here:
+https://collabkart-7aef1.web.app
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Separate signup and login for brands and influencers
+- Brand and influencer profile creation
+- Brands can discover influencers
+- Matching based on profile and collaboration details
+- Brands can send collaboration requests
+- Influencers can accept or reject requests
+- Real-time chat after a request is accepted
+- Typing indicator in chat
+- Brands can mark a collaboration as completed
+- Rating and review system after collaboration
+- Responsive design for desktop and mobile
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React
+- Vite
+- JavaScript
+- CSS
+- React Router
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Hosting
+- Git and GitHub
+
+## How It Works
+
+1. A user creates an account as either a Brand or an Influencer.
+2. The user completes their profile with the required details.
+3. Brands can browse influencers and find suitable creators.
+4. A brand can send a collaboration request to an influencer.
+5. The influencer can accept or reject the request.
+6. After accepting, both users can communicate through real-time chat.
+7. The brand can mark the collaboration as completed.
+8. After completion, the brand can give a rating and review to the influencer.
+
+## Project Structure
+
+```text
+src/
+├── assets/
+├── components/
+├── context/
+├── pages/
+├── firebase.js
+├── index.css
+└── main.jsx
+
+## Run Locally
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Onkar2507/collabkart.git
+```
+
+Go to the project folder:
+
+```bash
+cd collabkart
+```
+
+Install the dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+## Author
+
+Onkar Markad
+
+B.Tech in Artificial Intelligence and Machine Learning
